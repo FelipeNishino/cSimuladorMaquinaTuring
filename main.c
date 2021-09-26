@@ -26,9 +26,12 @@ typedef struct TuringMachine {
 	Transition* transitions;
 	char* tape[TAPE_SIZE];
 	int headPosition;
+	char** testWords;
+	int wordCount;
 } TuringMachine;
 
-void loadMachine(const char* filename, TuringMachine* machine, char** testWords);
+void loadMachine(const char* filename, TuringMachine* machine);
+void runMachine(TuringMachine machine);
 int parseDirection(char dir);
 
 int main(int argc, const char* argv[]) {
@@ -37,27 +40,24 @@ int main(int argc, const char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	struct TuringMachine machine;
-	char** testWords;
-	loadMachine(argv[1], &machine, testWords);
-	// for (int k = 0; k < 4; ++k) {
-	// 	printf("word %d: %s, size: %d", k, testWords[k], strlen(testWords[k]));
-	// }
+	loadMachine(argv[1], &machine);
+	runMachine(machine);
 	exit(EXIT_SUCCESS);
 }
 
-void loadMachine(const char* filename, TuringMachine* machine, char** testWords) {
+void loadMachine(const char* filename, TuringMachine* machine) {
 	FILE *fp;
 	char basename[20] = "./";
 	char lineBuffer[255];
 	for (int i = 0; i < TAPE_SIZE; ++i) {
 		machine->tape[i] = "-";
 	}
+
 	strcat(basename, filename);
 	fp = fopen(basename, "r");
 	if (fp) {
 		int lineCount = 0, targetLine = 100;
 		int currentCharIndex = 0;
-		// char *transitionBuffer = malloc(10*sizeof(char));
 		char transitionBuffer[10] = "";
 		int transitionReadStage = 0;
 		int wordReadStage = 0;
@@ -66,7 +66,7 @@ void loadMachine(const char* filename, TuringMachine* machine, char** testWords)
 		int j;
 		while (lineCount<targetLine) {
 			fgets(lineBuffer, 255, fp);
-			printf("read:%s", lineBuffer);
+			// printf("read:%s", lineBuffer);
 			switch (lineCount) {
 				case 0:
 					memcpy(machine->inputAlphabet, lineBuffer, strlen(lineBuffer));
@@ -80,34 +80,26 @@ void loadMachine(const char* filename, TuringMachine* machine, char** testWords)
 					for (j = 0; j < machine->nTransitions; ++j) {
 						fgets(lineBuffer, 255, fp);
 						currentCharIndex = transitionReadStage = 0;
-						// transitionBuffer = "";
 
 						while (lineBuffer[currentCharIndex] != '\0') {
-							if (lineBuffer[currentCharIndex] != ' ') {
-								// printf("ta aqui, tb: %s, lb:%s", transitionBuffer, lineBuffer);
-								strncat(transitionBuffer, lineBuffer, 1000);
-								// printf("ta aqui\n");
+							if (lineBuffer[currentCharIndex] != ' ' && lineBuffer[currentCharIndex] != 10) {
+							    strncpy(transitionBuffer, lineBuffer + currentCharIndex, 1);
 							}
 							else {
 								switch (transitionReadStage) {
 									case 0:
-										// printf("ta aqui 0\n");
 										machine->transitions[j].from = atoi(transitionBuffer);
 										break;
 									case 1:
-										// printf("ta aqui 1\n");
 										machine->transitions[j].read = *transitionBuffer;
 										break;
 									case 2:
-										// printf("ta aqui 2\n");
 										machine->transitions[j].write = *transitionBuffer;
 										break;
 									case 3:
-										// printf("ta aqui 3\n");
 										machine->transitions[j].dir = parseDirection(*transitionBuffer);
 										break;
 									case 4:
-										// printf("ta aqui 4\n");
 										machine->transitions[j].target = atoi(transitionBuffer);
 										break;
 								}
@@ -120,28 +112,20 @@ void loadMachine(const char* filename, TuringMachine* machine, char** testWords)
 					lineCount += machine->nTransitions;
 					break;
 				default:
-					nWords = atoi(lineBuffer);
-					testWords = malloc(nWords);
+					machine->wordCount = atoi(lineBuffer);
+					machine->testWords = malloc(machine->wordCount);
 
-					for (wordCounter; wordCounter < nWords; ++wordCounter) {
+					for (wordCounter; wordCounter < machine->wordCount; ++wordCounter) {
 						fgets(lineBuffer, 255, fp);
-						testWords[wordCounter] = malloc(strlen(lineBuffer - 1));
-						memcpy(testWords[wordCounter], lineBuffer, strlen(lineBuffer - 1));
-						if (testWords[wordCounter][strlen(testWords[wordCounter]) - 1] == 10) {
-							testWords[wordCounter][strlen(testWords[wordCounter]) - 1] = 0;
-						}
-						// for (int n = 0; n < strlen(testWords[wordCounter]); ++n) {
-						// 	printf("%d#", testWords[wordCounter][n]);
-						// }
-						// printf("\n");
+						lineBuffer[strcspn(lineBuffer, "\n")] = '\0';
+						machine->testWords[wordCounter] = malloc(strlen(lineBuffer) + 1);
+						strcpy(machine->testWords[wordCounter], lineBuffer);
 					}
-					lineCount += nWords;
-					targetLine = 4 + machine->nTransitions + nWords;
-					for (int k = 0; k < 4; ++k) {
-						printf("word %d: %s, size: %d\n", k, testWords[k], strlen(testWords[k]));
-					}
+
+					lineCount += machine->wordCount;
+					targetLine = 4 + machine->nTransitions + machine->wordCount;
 			}
-    		printf("line:%d, target:%d\n", lineCount, targetLine);
+    		// printf("line:%d, target:%d\n", lineCount, targetLine);
     		lineCount++;
 		}
 		printf("Done reading file.\n");
@@ -149,8 +133,21 @@ void loadMachine(const char* filename, TuringMachine* machine, char** testWords)
 	else {
 		printf("Couldn't find file named '%s', make sure to make the extension explicit.", filename);
 	} 
-	// printf("%d", strpbrk("asdf", "c") == NULL);
 	fclose(fp);
+}
+
+void runMachine(TuringMachine machine) {
+	for (int i = 0; i < machine.nTransitions; ++i)
+		printf("%d, %c, %c, %d, %d\n", machine.transitions[i].from, machine.transitions[i].read, machine.transitions[i].write, machine.transitions[i].dir, machine.transitions[i].target);
+	for (int k = 0; k < machine.wordCount; ++k)
+		printf("word %d: %s, size: %d\n", k, machine.testWords[k], strlen(machine.testWords[k]));
+	for (int word = 0; word < count; ++word) {
+		strncpy(machine.tape, machine.testWords[word]);
+		if (strpbrk(machine.inputAlphabet, ) == NULL) {
+			printf("symbol not in alphabet")
+		}	
+	}
+	// printf("%d", strpbrk("asdf", "c") == NULL);
 }
 
 int parseDirection(char dir) {
