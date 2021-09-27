@@ -1,2 +1,2 @@
 T1:
-	gcc main.c -o main
+	gcc main.c turingmachine.c -o main
